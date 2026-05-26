@@ -1,26 +1,25 @@
-# Matt - PDF to Text Transformer Bot
+# microcryptosofts PDF Reader Bot
 
-A lightweight production Telegram Bot written in Python using native async loops for reliable PDF conversion architectures.
+A specialized Python asynchronous backend framework built for Telegram, handling automated conversions of documents into readable characters.
 
-## Local Installation Setup
-1. Mount system dependencies (e.g., `sudo apt install tesseract-ocr`)
-2. Run `pip install -r requirements.txt`
-3. Export environment configuration token: `export BOT_TOKEN="your_token_here"`
-4. Start via command entry: `python bot.py`
+## Local Operations
+1. Mount binary engine structures: `sudo apt install tesseract-ocr`
+2. Spin up virtual tracking requirements: `pip install -r requirements.txt`
+3. Export connection keys: `export BOT_TOKEN="your-bot-father-token"`
+4. Ignite main runner: `python bot.py`
 
-## Render.com Native Deployment Pipeline Steps
+## Render.com Background Worker Deployment Options
 
-Because this service depends on binary packages outside the Python runtime environment (`tesseract-ocr`), you must configure Render to inject the binaries using an environment Native Docker construct, or more simply, a custom Shell Build script.
+Because Render's Standard Native Python runtime blocks manual binary package modification via `apt`, select **one** of the two deployment workflows below to manage the OCR dependencies:
 
-### Option 1: Native Ubuntu Binary Auto-Pull (Recommended)
-1. In the Render Dashboard, click **New +** and select **Background Worker**.
-2. Link your GitHub project repository.
-3. Set **Runtime** to `Python`.
-4. Set your **Start Command** box to exactly: `python bot.py`
+### Option A: The Docker Deployment System (Highly Recommended)
+Instead of picking "Python" as your system environment on Render, run your code using a Docker runtime wrapper. This bypasses build-path restrictions completely.
 
-### Option 2: Inject Native Binary Paths
-Go directly to your Background Worker service tab ➔ **Environment** and create the following key-value bindings:
-
-| Environment Key | Value / Token Path Reference |
-| :--- | :--- |
-| `BOT_TOKEN` | *[Your Private Telegram Token String from @BotFather]* |
+1. Add a file named `Dockerfile` to your GitHub repo root folder containing:
+   ```dockerfile
+   FROM python:3.11-slim
+   RUN apt-get update && apt-get install -y tesseract-ocr libtesseract-dev && rm -rf /var/lib/apt/lists/*
+   WORKDIR /app
+   COPY . .
+   RUN pip install --no-cache-dir -r requirements.txt
+   CMD ["python", "bot.py"]
