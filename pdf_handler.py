@@ -1,4 +1,5 @@
 import io
+import os
 import logging
 import pdfplumber
 from PIL import Image
@@ -6,58 +7,60 @@ import pytesseract
 
 logger = logging.getLogger(__name__)
 
+# Fallback path adjustment for Render binary routing
+if os.path.exists("/opt/render/project/src/bin/tesseract"):
+    pytesseract.pytesseract.tesseract_cmd = "/opt/render/project/src/bin/tesseract"
+
 def extract_text_from_pdf(file_path: str) -> str:
     """
-    Attempts clean digital extraction. 
-    If structural text length is less than 10 characters, it flags the PDF as scanned
-    and triggers the Tesseract OCR fallback engine.
+    Tries a standard programmatic text extraction. If the resulting text
+    is missing or too short, it assumes a scanned document and runs OCR.
     """
     extracted_text = []
     
     try:
-        # Step 1: Attempt standard programmatic text parsing
         with pdfplumber.open(file_path) as pdf:
             for page_num, page in enumerate(pdf.pages, start=1):
                 page_text = page.extract_text()
                 if page_text and page_text.strip():
                     extracted_text.append(page_text)
-        
+                    
         full_text = "\n".join(extracted_text).strip()
         
-        # Step 2: Quality Gate Trigger for Scanned / Image-Based PDFs
-        if len(full_text) > 10:
+        # Quality Gate Check: If less than 15 characters, it's likely a scanned image
+        if len(full_text) > 15:
+            logger.info("Successfully extracted native digital text layer.")
             return full_text
             
-        logger.info("Digital text layer insufficient. Triggering OCR engine...")
+        logger.info("Digital text layers low/empty. Cascading to OCR fallback...")
         return run_ocr_fallback(file_path)
 
     except Exception as e:
-        logger.error(f"Error inside text extraction module: {str(e)}", exc_info=True)
-        raise RuntimeError("Failed to correctly process the PDF structure.")
+        logger.error(f"Error executing structural PDF parsing: {str(e)}", exc_info=True)
+        raise RuntimeError("Failed to decode PDF structural data.")
 
 def run_ocr_fallback(file_path: str) -> str:
-    """Converts layout objects to image buffers and feeds them to Tesseract OCR."""
-    ocr_text = []
+    """Converts PDF pages to high-resolution memory buffers and runs optical character recognition."""
+    ocr_results = []
     try:
         with pdfplumber.open(file_path) as pdf:
-            for i, page in enumerate(pdf.pages, start=1):
-                logger.info(f"Performing optical character recognition on page {i}...")
-                # Render the vector PDF layout stream to a 200 DPI bitmap image 
-                img_obj = page.to_image(resolution=200)
+            for page_index, page in enumerate(pdf.pages, start=1):
+                logger.info(f"Processing OCR engine for page {page_index}...")
                 
-                # Convert the internal frame pointer back into an active memory bytes buffer
-                img_bytes = io.BytesIO()
-                img_obj.save(img_bytes, format="PNG")
-                img_bytes.seek(0)
+                # Render the vector PDF map to a sharp 200 DPI bitmap
+                image_object = page.to_image(resolution=200)
+                image_buffer = io.BytesIO()
+                image_object.save(image_buffer, format="PNG")
+                image_buffer.seek(0)
                 
-                # Hand off image stream to PyTesseract
-                pil_img = Image.open(img_bytes)
-                page_ocr = pytesseract.image_to_string(pil_img)
+                # Pass off bytes to pytesseract
+                pil_image = Image.open(image_buffer)
+                page_text = pytesseract.image_to_string(pil_image)
                 
-                if page_ocr.strip():
-                    ocr_text.append(page_ocr)
+                if page_text.strip():
+                    ocr_results.append(page_text)
                     
-        return "\n".join(ocr_text).strip()
+        return "\n".join(ocr_results).strip()
     except Exception as e:
-        logger.error(f"OCR Pipeline Exception: {str(e)}")
-        raise RuntimeError("OCR processing failed. The system binary may be unconfigured.")
+        logger.error(f"OCR Core Processing failure: {str(e)}")
+        raise RuntimeError("OCR subsystem failed. Tesseract binary may be missing from environment paths.")
